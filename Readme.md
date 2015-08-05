@@ -1,5 +1,6 @@
 PSEnvironment
 =============
+[![GitHub license](https://img.shields.io/github/license/mashape/apistatus.svg)](http://opensource.org/licenses/MIT)
 
 A set of functions to make dealing with Environment Variables easier.
 
