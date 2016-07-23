@@ -43,10 +43,19 @@ function Get-EnvironmentPath
     param(
         [Parameter(Mandatory = $false)]
         [ValidateSet('process','machine','user')]
-        [String]$Scope = 'process'
+        [String[]]$Scope
     )
     
-    (Get-EnvironmentVariable -Name 'PATH' -Scope $Scope) -split ';' 
+    if (-not $Scope) {
+        $Scope = @('process','machine','user')
+    }
+
+    foreach ($s in $Scope) {
+        $pathss = (Get-EnvironmentVariable -Name 'PATH' -Scope $s) -split ';'
+        foreach ($paths in $pathss) {
+            [pscustomobject]@{ Path = $paths; Scope = $s; Exists = Test-Path($paths) }
+        }
+    }
 }
 
 function Repair-EnvironmentPath
@@ -61,39 +70,39 @@ function Repair-EnvironmentPath
     {
         Write-Warning -Message 'This will change current-process value only. This may not be what you intended; see -Scope'
     }
+    
+    $verbose = ($PSCmdlet.MyInvocation.BoundParameters['Verbose'].IsPresent -eq $true)
 
     # Ensure unique paths only
-    $path = Get-EnvironmentPath
-    $newPath = $path | Select-Object -Unique
-    $msg = "Remove $($path.count - $newPath.count) duplicate path(s)"
-    Write-Verbose -Message $msg
-    $null = $PSCmdlet.ShouldProcess($msg)
-    $path = $newPath
+    $paths = Get-EnvironmentPath -Scope $Scope
+    $result = @()
+    foreach ($path in ($paths | Select-Object -ExpandProperty Path)) {
+      if ([string]::IsNullOrWhiteSpace($path)) {
+        Write-Verbose 'Found empty path, skipping'
+        if ($PSCmdlet.ShouldProcess($path, 'Skip empty path entry')) {
+          continue
+        }
+      }
+      
+      $path = $path.Trim()
+      if ($path -in $result) {
+        Write-Verbose 'Found duplicate path, skipping'
+        if ($PSCmdlet.ShouldProcess($path, 'Skip duplicate path entry')) {
+          continue
+        }
+      }
 
-    #remove empty paths
-    $newPath = $path |  Where-Object -FilterScript {
-        $_.Trim -ne '' 
-    } 
-    $msg = "Remove $($path.count - $newPath.count) empty path(s)"
-    Write-Verbose -Message $msg
-    $null = $PSCmdlet.ShouldProcess($msg)
-    $path = $newPath
-
-    # Remove invalid paths
-    $result = New-Object -TypeName System.Collections.ArrayList
-    $result.AddRange(($path | Where-Object -FilterScript {
-                Test-Path $_ 
-    }))
-    $path |
-    Where-Object -FilterScript {
-        ! $result.Contains($_) 
-    } |
-    ForEach-Object -Process {
-        Write-Verbose -Message "Found Invalid Path $_"
-        $null = $PSCmdlet.ShouldProcess($_, 'Remove invalid path')
+      if (-not (Test-Path $path -PathType Container)) {
+        Write-Verbose 'Found invliad path, skipping'
+        if ($PSCmdlet.ShouldProcess($path, 'Skip invalid path entry')) {
+          continue
+        }
+      }
+      
+      $result += $path
     }
 
-    if ($PSCmdlet.ShouldProcess('PATH', 'Write Environment Variable'))
+    if ($PSCmdlet.ShouldProcess("`n$($result -join "`n")`n", 'Update environment with paths'))
     {
         Set-EnvironmentVariable -Scope $Scope -Name PATH -Value ($result -join ';')
     }
@@ -104,7 +113,7 @@ function Test-EnvironmentPath
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true,ValueFromPipeline = $true)]
-        [String]$path,
+        [String]$paths,
 
         [Parameter(Mandatory = $false)]
         [ValidateSet('process','machine','user')]
@@ -112,7 +121,7 @@ function Test-EnvironmentPath
     )
 
     (Get-EnvironmentPath -Scope $Scope | Where-Object -FilterScript {
-            $_ -ieq $path 
+            $_ -ieq $paths 
     }).Count -gt 0
 }
 
@@ -121,7 +130,7 @@ function Add-EnvironmentPath
     [CmdletBinding(SupportsShouldProcess = $true)]
     param(
         [Parameter(Mandatory = $true,ValueFromPipeline = $true)]
-        [String]$path,
+        [String]$paths,
 
         [Parameter(Mandatory = $false)]
         [ValidateSet('process','machine','user')]
@@ -129,19 +138,19 @@ function Add-EnvironmentPath
     )
     
 
-    $path = $path.TrimEnd('\')
-    if (!(Test-Path -Path $path -PathType container))
+    $paths = $paths.TrimEnd('\')
+    if (!(Test-Path -Path $paths -PathType container))
     {
         throw 'Invalid Path'
     }
 
     $envPath = Get-EnvironmentPath -Scope $Scope
-    if (Test-EnvironmentPath -Scope $Scope -Path $path)
+    if (Test-EnvironmentPath -Scope $Scope -Path $paths)
     {
         throw 'Path already in PATH variable'
     }
     
-    $result = $envPath + $path
+    $result = $envPath + $paths
     Write-Verbose -Message "New Path: $($result -join ';')"
     if ($PSCmdlet.ShouldProcess('PATH', 'Update Environment Variable'))
     {
@@ -154,7 +163,7 @@ function Remove-EnvironmentPath
     [CmdletBinding(SupportsShouldProcess = $true)]
     param(
         [Parameter(Mandatory = $true,ValueFromPipeline = $true)]
-        [String]$path,
+        [String]$paths,
 
         [Parameter(Mandatory = $false)]
         [ValidateSet('process','machine','user')]
@@ -162,15 +171,15 @@ function Remove-EnvironmentPath
     )
     
     $envPath = Get-EnvironmentPath -Scope $Scope
-    if (!(Test-EnvironmentPath -Scope $Scope -Path $path))
+    if (!(Test-EnvironmentPath -Scope $Scope -Path $paths))
     {
         throw 'Path not in PATH variable'
     }
 
     $result = $envPath | Where-Object -FilterScript {
-        $_ -ine $path 
+        $_ -ine $paths 
     }
-    if ($PSCmdlet.ShouldProcess('PATH', "remove: $path"))
+    if ($PSCmdlet.ShouldProcess('PATH', "remove: $paths"))
     {
         Set-EnvironmentVariable -Name PATH -Value ($result -join ';')
     }
