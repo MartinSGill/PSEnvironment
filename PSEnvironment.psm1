@@ -127,7 +127,7 @@ function Test-EnvironmentPath
   [CmdletBinding()]
   param(
     [Parameter(Mandatory = $true,ValueFromPipeline = $true)]
-    [String]$path,
+    [String]$Path,
 
     [Parameter(Mandatory = $false)]
     [ValidateSet('process','machine','user')]
@@ -144,7 +144,7 @@ function Add-EnvironmentPath
   [CmdletBinding(SupportsShouldProcess = $true)]
   param(
     [Parameter(Mandatory = $true,ValueFromPipeline = $true)]
-    [String]$paths,
+    [String]$Path,
 
     [Parameter(Mandatory = $false)]
     [ValidateSet('process','machine','user')]
@@ -153,17 +153,17 @@ function Add-EnvironmentPath
     
 
   $paths = $paths.TrimEnd('\')
-  if (!(Test-Path -Path $paths -PathType container))
+  if (!(Test-Path -Path $path -PathType container))
   {
     throw 'Invalid Path'
   }
 
-  $envPath = Get-EnvironmentPath -Scope $Scope
   if (Test-EnvironmentPath -Scope $Scope -Path $paths)
   {
     throw 'Path already in PATH variable'
   }
     
+  $envPath = Get-EnvironmentPath -Scope $Scope | Select-Object -ExpandProperty path   
   $result = $envPath + $paths
   Write-Verbose -Message "New Path: $($result -join ';')"
   if ($PSCmdlet.ShouldProcess('PATH', 'Update Environment Variable'))
