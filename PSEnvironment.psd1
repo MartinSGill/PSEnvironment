@@ -12,7 +12,7 @@
 RootModule = 'PSEnvironment.psm1'
 
 # Version number of this module.
-ModuleVersion = '1.0'
+ModuleVersion = '1.1'
 
 # ID used to uniquely identify this module
 GUID = '4944c1c9-2e68-4253-8254-1d30a72ab9a7'
@@ -21,7 +21,7 @@ GUID = '4944c1c9-2e68-4253-8254-1d30a72ab9a7'
 Author = 'Martin Gill'
 
 # Company or vendor of this module
-CompanyName = 'Unknown'
+CompanyName = ''
 
 # Copyright statement for this module
 Copyright = '(c) 2015-2016 Martin Gill. All rights reserved.'

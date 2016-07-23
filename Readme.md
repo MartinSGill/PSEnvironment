@@ -18,17 +18,12 @@ All functions take a ```-Scope``` parameter (default 'process') to target where 
 
 Function that can change the system support ```-WhatIf```
 
-Installation
-------------
-
-Clone into your powershell modules folder and Import-Module PSEnvironment
-
 License
 -------
 
 The MIT License (MIT)
 
-Copyright (c) 2015 Martin Gill
+Copyright (c) 2015-2016 Martin Gill
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
