@@ -11,7 +11,7 @@ function Get-EnvironmentVariable
     [ValidateSet('process','machine','user')]
     [String]$Scope = 'process'
   )
-    
+
   [Environment]::GetEnvironmentVariable($Name, $Scope)
 }
 
@@ -29,7 +29,7 @@ function Set-EnvironmentVariable
     [ValidateSet('process','machine','user')]
     [String]$Scope = 'process'
   )
-    
+
   Write-Verbose -Message "Setting '$Name' to '$Value' on '$Scope'"
   if ($PSCmdlet.ShouldProcess("[$Scope]::$Name", $Value))
   {
@@ -45,16 +45,16 @@ function Get-EnvironmentPath
     [ValidateSet('process','machine','user')]
     [String[]]$Scope
   )
-    
-  if (-not $Scope) 
+
+  if (-not $Scope)
   {
     $Scope = @('process', 'machine', 'user')
   }
 
-  foreach ($s in $Scope) 
+  foreach ($s in $Scope)
   {
     $pathss = (Get-EnvironmentVariable -Name 'PATH' -Scope $s) -split ';'
-    foreach ($paths in $pathss) 
+    foreach ($paths in $pathss)
     {
       [pscustomobject]@{
         Path   = $paths
@@ -77,42 +77,39 @@ function Repair-EnvironmentPath
   {
     Write-Warning -Message 'This will change current-process value only. This may not be what you intended; see -Scope'
   }
-    
+
   $verbose = ($PSCmdlet.MyInvocation.BoundParameters['Verbose'].IsPresent -eq $true)
 
   # Ensure unique paths only
   $paths = Get-EnvironmentPath -Scope $Scope
   $result = @()
-  foreach ($path in ($paths | Select-Object -ExpandProperty Path)) 
+  foreach ($path in ($paths | Select-Object -ExpandProperty Path))
   {
-    if ([string]::IsNullOrWhiteSpace($path)) 
+    if ([string]::IsNullOrWhiteSpace($path))
     {
       Write-Verbose -Message 'Found empty path, skipping'
-      if ($PSCmdlet.ShouldProcess($path, 'Skip empty path entry')) 
-      {
-        continue
-      }
+      continue
     }
-      
+
     $path = $path.Trim()
-    if ($path -in $result) 
+    if ($path -in $result)
     {
       Write-Verbose -Message 'Found duplicate path, skipping'
-      if ($PSCmdlet.ShouldProcess($path, 'Skip duplicate path entry')) 
+      if ($PSCmdlet.ShouldProcess($path, 'Skip duplicate path entry'))
       {
         continue
       }
     }
 
-    if (-not (Test-Path $path -PathType Container)) 
+    if (-not (Test-Path $path -PathType Container))
     {
       Write-Verbose -Message 'Found invliad path, skipping'
-      if ($PSCmdlet.ShouldProcess($path, 'Skip invalid path entry')) 
+      if ($PSCmdlet.ShouldProcess($path, 'Skip invalid path entry'))
       {
         continue
       }
     }
-      
+
     $result += $path
   }
 
@@ -150,7 +147,7 @@ function Add-EnvironmentPath
     [ValidateSet('process','machine','user')]
     [String]$Scope = 'process'
   )
-    
+
 
   $paths = $paths.TrimEnd('\')
   if (!(Test-Path -Path $path -PathType container))
@@ -162,8 +159,8 @@ function Add-EnvironmentPath
   {
     throw 'Path already in PATH variable'
   }
-    
-  $envPath = Get-EnvironmentPath -Scope $Scope | Select-Object -ExpandProperty path   
+
+  $envPath = Get-EnvironmentPath -Scope $Scope | Select-Object -ExpandProperty path
   $result = $envPath + $paths
   Write-Verbose -Message "New Path: $($result -join ';')"
   if ($PSCmdlet.ShouldProcess('PATH', 'Update Environment Variable'))
@@ -183,7 +180,7 @@ function Remove-EnvironmentPath
     [ValidateSet('process','machine','user')]
     [String]$Scope = 'process'
   )
-    
+
   $envPath = Get-EnvironmentPath -Scope $Scope
   if (!(Test-EnvironmentPath -Scope $Scope -Path ($paths | Select-Object -ExpandProperty Path)))
   {
@@ -198,4 +195,3 @@ function Remove-EnvironmentPath
     Set-EnvironmentVariable -Name PATH -Value ($result -join ';')
   }
 }
-

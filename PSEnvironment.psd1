@@ -12,7 +12,7 @@
 RootModule = 'PSEnvironment.psm1'
 
 # Version number of this module.
-ModuleVersion = '1.1'
+ModuleVersion = '1.1.1'
 
 # ID used to uniquely identify this module
 GUID = '4944c1c9-2e68-4253-8254-1d30a72ab9a7'
@@ -66,8 +66,8 @@ FormatsToProcess = @()
 # NestedModules = @()
 
 # Functions to export from this module
-FunctionsToExport = 
-               @('Get-EnvironmentVariable', 
+FunctionsToExport =
+               @('Get-EnvironmentVariable',
                 'Set-EnvironmentVariable',
                 'Get-EnvironmentPath',
                 'Repair-EnvironmentPath',
@@ -117,7 +117,7 @@ PrivateData = @{
         # ExternalModuleDependencies = ''
 
     } # End of PSData hashtable
-    
+
  } # End of PrivateData hashtable
 
 # HelpInfo URI of this module
@@ -127,4 +127,3 @@ PrivateData = @{
 # DefaultCommandPrefix = ''
 
 }
-
