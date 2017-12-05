@@ -1,5 +1,30 @@
 ﻿#requires -Version 2
+Set-StrictMode -Version 2
 
+##############################
+#.SYNOPSIS
+# Gets an environment variable value.
+#
+#.DESCRIPTION
+# Gets an environment variable value.
+#
+#.PARAMETER Name
+# Name of the Environment variable
+#
+#.PARAMETER Scope
+# The environment scope to change. By default only the current
+# process is affected.
+#
+#.EXAMPLE
+# PS> Set-EnvironmentVariable -Name MyVar -Value MyValue -Scope user
+#
+#.NOTES
+# When the scope is set to "process" this command is equivalent to
+# $env:<Name>
+#
+# By comparing process & user/machine scopes it's possible to see if
+# the current process has changed a value from it's default.
+##############################
 function Get-EnvironmentVariable
 {
   [CmdletBinding()]
@@ -15,14 +40,38 @@ function Get-EnvironmentVariable
   [Environment]::GetEnvironmentVariable($Name, $Scope)
 }
 
+##############################
+#.SYNOPSIS
+# Sets an envrionment variable.
+#
+#.DESCRIPTION
+# Allows setting an environment variable for any scope.
+#
+#.PARAMETER Name
+# Name of the variable.
+#
+#.PARAMETER Value
+# Value to be set
+#
+#.PARAMETER Scope
+# The environment scope to change. By default only the current
+# process is affected.
+#
+#.EXAMPLE
+# PS> Set-EnvironmentVariable -Name MyVar -Value MyValue -Scope user
+#
+#.NOTES
+# When the scope is set to "process" this command is equivalent to
+# $env:<Name> = <Value>
+##############################
 function Set-EnvironmentVariable
 {
   [CmdletBinding(SupportsShouldProcess = $true)]
   param(
-    [Parameter(Mandatory = $true,ValueFromPipeline = $true)]
+    [Parameter(Mandatory = $true,ValueFromPipelineByPropertyName = $true)]
     [String]$Name,
 
-    [Parameter(Mandatory = $true,ValueFromPipeline = $true)]
+    [Parameter(Mandatory = $true,ValueFromPipelineByPropertyName = $true)]
     [String]$Value,
 
     [Parameter(Mandatory = $false)]
@@ -37,6 +86,29 @@ function Set-EnvironmentVariable
   }
 }
 
+##############################
+#.SYNOPSIS
+# Get the current PATH environement value.
+#
+#.DESCRIPTION
+# Get the current PATH environement value formatted as a PSCustomObject 
+# with Path, Scope, and Exists.
+#
+#.PARAMETER Scope
+# One or more scopes. By default all scopes are returned.
+#
+ #.EXAMPLE
+# PS> Get-EnvironmentPath
+# 
+# Path                                                   Scope   Exists
+# ----                                                   -----   ------
+# C:\tools\go\bin                                        process   True
+# ...
+# C:\Program Files\Java\jdk1.8.0_74\bin                  machine   True
+# C:\Go\bin                                              machine  False
+# ...
+# C:\Program Files\Git\cmd                               user      True
+##############################
 function Get-EnvironmentPath
 {
   [CmdletBinding()]
@@ -56,6 +128,7 @@ function Get-EnvironmentPath
     $pathss = (Get-EnvironmentVariable -Name 'PATH' -Scope $s) -split ';'
     foreach ($paths in $pathss)
     {
+      if ([String]::IsNullOrWhiteSpace($paths)) { continue }
       [pscustomobject]@{
         Path   = $paths
         Scope  = $s
@@ -65,6 +138,22 @@ function Get-EnvironmentPath
   }
 }
 
+##############################
+#.SYNOPSIS
+# Tries to clean up the PATH environment variable.
+#
+#.DESCRIPTION
+# Tries to clean up the PATH environment variable by looking
+# for bad entries, e.g. empty entries, invalid paths, duplicates.
+#
+#.PARAMETER Scope
+# The environment scope to change. By default only the current
+# process is affected.
+#
+#.EXAMPLE
+#  PS> Repair-EnvironmentPath -Scope process
+#
+##############################
 function Repair-EnvironmentPath
 {
   [CmdletBinding(SupportsShouldProcess = $true)]
@@ -87,15 +176,15 @@ function Repair-EnvironmentPath
   {
     if ([string]::IsNullOrWhiteSpace($path))
     {
-      Write-Verbose -Message 'Found empty path, skipping'
+      Write-Verbose -Message 'Found empty path. Removing.'
       continue
     }
 
     $path = $path.Trim()
     if ($path -in $result)
     {
-      Write-Verbose -Message 'Found duplicate path, skipping'
-      if ($PSCmdlet.ShouldProcess($path, 'Skip duplicate path entry'))
+      Write-Warning -Message "Found duplicate path [$path]. Removing."
+      if ($PSCmdlet.ShouldProcess($path, 'Removing duplicate path entry?'))
       {
         continue
       }
@@ -103,8 +192,8 @@ function Repair-EnvironmentPath
 
     if (-not (Test-Path $path -PathType Container))
     {
-      Write-Verbose -Message 'Found invliad path, skipping'
-      if ($PSCmdlet.ShouldProcess($path, 'Skip invalid path entry'))
+      Write-Warning -Message "Found invliad path [$path]. Removing."
+      if ($PSCmdlet.ShouldProcess($path, 'Removing invalid path entry?'))
       {
         continue
       }
@@ -119,6 +208,27 @@ function Repair-EnvironmentPath
   }
 }
 
+##############################
+#.SYNOPSIS
+# Test if the specified path is defined in the PATH
+# Environment variable.
+#
+#.DESCRIPTION
+# Test if the specified path is defined in the PATH
+# Environment variable.
+#
+#.PARAMETER Path
+# Path to a directory.
+#
+#.PARAMETER Scope
+# The environment scope to change. By default only the current
+# process is affected.
+#
+#.EXAMPLE
+#  PS> Test-EnvironmentPath -Scope process -Path c:\windows\system32
+#  True
+#
+##############################
 function Test-EnvironmentPath
 {
   [CmdletBinding()]
@@ -136,6 +246,23 @@ function Test-EnvironmentPath
   }).Count -gt 0
 }
 
+##############################
+#.SYNOPSIS
+# Add the specified path to the PATH environment variable.
+#
+#.DESCRIPTION
+# Add the specified path to the PATH environment variable.
+#
+#.PARAMETER Path
+# Path to a directory
+#
+#.PARAMETER Scope
+# The environment scope to change. By default only the current
+# process is affected.
+#
+#.EXAMPLE
+# PS> Add-EnvrionmentPath -Scope Process -Path c:\path\to\my\cool\tools
+##############################
 function Add-EnvironmentPath
 {
   [CmdletBinding(SupportsShouldProcess = $true)]
@@ -148,14 +275,13 @@ function Add-EnvironmentPath
     [String]$Scope = 'process'
   )
 
-
-  $paths = $paths.TrimEnd('\')
-  if (!(Test-Path -Path $path -PathType container))
+  $Path = $path.TrimEnd('\')
+  if (!(Test-Path -Path $Path -PathType container))
   {
-    throw 'Invalid Path'
+    throw 'Invalid Directory'
   }
 
-  if (Test-EnvironmentPath -Scope $Scope -Path $paths)
+  if (Test-EnvironmentPath -Scope $Scope -Path $Path)
   {
     throw 'Path already in PATH variable'
   }
@@ -169,6 +295,23 @@ function Add-EnvironmentPath
   }
 }
 
+##############################
+#.SYNOPSIS
+# Removes the specified path from the environmet PATH variable.
+#
+#.DESCRIPTION
+# Removes the specified path from the environmet PATH variable.
+#
+#.PARAMETER path
+# Path to be removed.
+#
+#.PARAMETER Scope
+# The environment scope to change. By default only the current
+# process is affected.
+#
+#.EXAMPLE
+# PS> Remove-EnvironmentPath -Scope process -Path c:\a\misbehaving\tool
+##############################
 function Remove-EnvironmentPath
 {
   [CmdletBinding(SupportsShouldProcess = $true)]
@@ -182,15 +325,15 @@ function Remove-EnvironmentPath
   )
 
   $envPath = Get-EnvironmentPath -Scope $Scope
-  if (!(Test-EnvironmentPath -Scope $Scope -Path ($paths | Select-Object -ExpandProperty Path)))
+  if (!(Test-EnvironmentPath -Scope $Scope -Path ($Path | Select-Object -ExpandProperty Path)))
   {
     throw 'Path not in PATH variable'
   }
 
   $result = $envPath | Where-Object -FilterScript {
-    $_ -ine $paths
+    $_ -ine $Path
   }
-  if ($PSCmdlet.ShouldProcess('PATH', "remove: $paths"))
+  if ($PSCmdlet.ShouldProcess('PATH', "remove: $Path"))
   {
     Set-EnvironmentVariable -Name PATH -Value ($result -join ';')
   }

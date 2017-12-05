@@ -19,13 +19,13 @@ InModuleScope PSEnvironment {
         Test-EnvironmentPath -path 'c:\path1\path1'
       }
     }
-    
+
     Context 'Path not in environment' {
       Mock Get-EnvironmentPath { @{ path = 'c:\path1\path1\' }, @{ path = 'c:\path2\path2\' }  }
       It 'returns false' {
         Test-EnvironmentPath -path 'c:\path3\path3'
       }
     }
-  
-  }    
+
+  }
 }
